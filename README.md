@@ -36,15 +36,24 @@ Do the following steps to run 2x Nodes distributed training (3xGPUs per node)
 __Node One__
 
 ```
-NCCL_DEBUG=INFO python3 -m torch.distributed.launch --nproc_per_node=3 --nnodes=2 --node_rank=0 --master_addr="xxx.xxx.xxx.xxx" --master_port=1234 resnet_ddp.py --backend=nccl
+NCCL_DEBUG=INFO python3 -m torch.distributed.launch \
+--nproc_per_node=3 --nnodes=2 --node_rank=0 \
+--master_addr="xxx.xxx.xxx.xxx" --master_port=1234 \
+resnet_ddp.py \
+--backend=nccl
 ```
 
 __Node Two__
 
 ```
-NCCL_DEBUG=INFO python3 -m torch.distributed.launch --nproc_per_node=3 --nnodes=2 --node_rank=1 --master_addr="1xxx.xxx.xxx.xxx" --master_port=1234 resnet_ddp.py --backend=nccl
+NCCL_DEBUG=INFO python3 -m torch.distributed.launch \
+--nproc_per_node=3 --nnodes=2 --node_rank=1 \
+--master_addr="xxx.xxx.xxx.xxx" --master_port=1234 \
+resnet_ddp.py \
+--backend=nccl
 ```
 
+Note: `backend` options are `nccl`, `gloo`, and `mpi`. "By default for Linux, the Gloo and NCCL backends are built and included in PyTorch distributed (NCCL only when building with CUDA). MPI is an optional backend that can only be included if you build PyTorch from source". More details can be found [here](https://pytorch.org/docs/stable/distributed.html)
 
 ## Credit
 
