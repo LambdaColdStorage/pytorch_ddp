@@ -50,6 +50,10 @@ def main():
     random_seed_default = 0
     model_dir_default = "saved_models"
     model_filename_default = "resnet_distributed.pth"
+    w = 32
+    h = 32
+    c = 3
+    num_steps_syn = 20
 
     # Each process runs on 1 GPU device specified by the local_rank argument.
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -62,6 +66,7 @@ def main():
     parser.add_argument("--model_filename", type=str, help="Model filename.", default=model_filename_default)
     parser.add_argument("--resume", action="store_true", help="Resume training from saved checkpoint.")
     parser.add_argument("--backend", type=str, help="Backend for distribted training.", default='nccl', choices=['nccl', 'gloo', 'mpi'])
+    parser.add_argument("--use_syn", action="store_true", help="Use synthetic data")
     argv = parser.parse_args()
 
     local_rank = argv.local_rank
@@ -73,6 +78,7 @@ def main():
     model_filename = argv.model_filename
     resume = argv.resume
     backend = argv.backend
+    use_syn = argv.use_syn
 
     # Create directories outside the PyTorch program
     # Do not create directory here because it is not multiprocess safe
@@ -125,6 +131,10 @@ def main():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(ddp_model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=1e-5)
 
+    # Synthetic data
+    inputs_syn = torch.rand((batch_size, c, w, h)).to(device)
+    labels_syn = torch.zeros(batch_size, dtype=torch.int64).to(device)
+
     # Loop over the dataset multiple times
     times = []
     for epoch in range(num_epochs):
@@ -142,23 +152,39 @@ def main():
 
         ddp_model.train()
 
-        start_epoch = time.time()
-        count = 0
-        for data in train_loader:
-            inputs, labels = data[0].to(device), data[1].to(device)
-            optimizer.zero_grad()
-            outputs = ddp_model(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            count += 1
-        torch.cuda.synchronize()
-        end_epoch = time.time()
-        elapsed = end_epoch - start_epoch
+        if use_syn:
+            start_epoch = time.time()
+            for count in range(num_steps_syn):
+                optimizer.zero_grad()
+                outputs = ddp_model(inputs_syn)
+                loss = criterion(outputs, labels_syn)
+                loss.backward()
+                optimizer.step()
+            torch.cuda.synchronize()
+            end_epoch = time.time()
+            elapsed = end_epoch - start_epoch
 
-        if epoch > 0:
-            times.append(elapsed)
-            print('num_steps_per_gpu: {}, avg_step_time: {:.4f}'.format(count, elapsed / count))
+            if epoch > 0:
+                times.append(elapsed)
+                print('num_steps_per_gpu: {}, avg_step_time: {:.4f}'.format(count, elapsed / count))              
+        else:
+            start_epoch = time.time()
+            count = 0
+            for data in train_loader:
+                inputs, labels = data[0].to(device), data[1].to(device)
+                optimizer.zero_grad()
+                outputs = ddp_model(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+                count += 1
+            torch.cuda.synchronize()
+            end_epoch = time.time()
+            elapsed = end_epoch - start_epoch
+
+            if epoch > 0:
+                times.append(elapsed)
+                print('num_steps_per_gpu: {}, avg_step_time: {:.4f}'.format(count, elapsed / count))
 
     avg_time = sum(times) / (num_epochs - 1)
 
