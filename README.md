@@ -36,7 +36,7 @@ Do the following steps to run 2x Nodes distributed training (3xGPUs per node)
 __Node One__
 
 ```
-NCCL_DEBUG=INFO python3 -m torch.distributed.launch \
+NCCL_DEBUG=INFO NCCL_ALGO=Ring NCCL_NET_GDR_LEVEL=4 python3 -m torch.distributed.launch \
 --nproc_per_node=3 --nnodes=2 --node_rank=0 \
 --master_addr="xxx.xxx.xxx.xxx" --master_port=1234 \
 resnet_ddp.py \
@@ -46,7 +46,7 @@ resnet_ddp.py \
 __Node Two__
 
 ```
-NCCL_DEBUG=INFO python3 -m torch.distributed.launch \
+NCCL_DEBUG=INFO NCCL_ALGO=Ring NCCL_NET_GDR_LEVEL=4 python3 -m torch.distributed.launch \
 --nproc_per_node=3 --nnodes=2 --node_rank=1 \
 --master_addr="xxx.xxx.xxx.xxx" --master_port=1234 \
 resnet_ddp.py \

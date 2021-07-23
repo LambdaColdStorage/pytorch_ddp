@@ -14,6 +14,7 @@ import argparse
 import os
 import random
 import numpy as np
+import time
 
 def set_random_seeds(random_seed=0):
 
@@ -125,6 +126,7 @@ def main():
     optimizer = optim.SGD(ddp_model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=1e-5)
 
     # Loop over the dataset multiple times
+    times = []
     for epoch in range(num_epochs):
 
         print("Local Rank: {}, Epoch: {}, Training ...".format(local_rank, epoch))
@@ -140,6 +142,7 @@ def main():
 
         ddp_model.train()
 
+        start_epoch = time.time()
         for data in train_loader:
             inputs, labels = data[0].to(device), data[1].to(device)
             optimizer.zero_grad()
@@ -147,6 +150,14 @@ def main():
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+        torch.cuda.synchronize()
+        end_epoch = time.time()
+        elapsed = end_epoch - start_epoch
+        times.append(elapsed)
+
+    avg_time = sum(times)/num_epochs
+
+    print("Average epoch time: {}".format(avg_time))
 
 if __name__ == "__main__":
     
