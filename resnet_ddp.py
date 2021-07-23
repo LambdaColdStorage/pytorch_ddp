@@ -143,6 +143,7 @@ def main():
         ddp_model.train()
 
         start_epoch = time.time()
+        count = 0
         for data in train_loader:
             inputs, labels = data[0].to(device), data[1].to(device)
             optimizer.zero_grad()
@@ -150,12 +151,16 @@ def main():
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+            count += 1
         torch.cuda.synchronize()
         end_epoch = time.time()
         elapsed = end_epoch - start_epoch
-        times.append(elapsed)
 
-    avg_time = sum(times)/num_epochs
+        if epoch > 0:
+            times.append(elapsed)
+            print('num_steps_per_gpu: {}, avg_step_time: {:.4f}'.format(count, elapsed / count))
+
+    avg_time = sum(times) / (num_epochs - 1)
 
     print("Average epoch time: {}".format(avg_time))
 
