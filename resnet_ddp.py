@@ -15,6 +15,7 @@ import os
 import random
 import numpy as np
 import time
+import importlib
 
 def set_random_seeds(random_seed=0):
 
@@ -42,6 +43,7 @@ def evaluate(model, device, test_loader):
 
     return accuracy
 
+
 def main():
 
     num_epochs_default = 10000
@@ -66,6 +68,7 @@ def main():
     parser.add_argument("--model_filename", type=str, help="Model filename.", default=model_filename_default)
     parser.add_argument("--resume", action="store_true", help="Resume training from saved checkpoint.")
     parser.add_argument("--backend", type=str, help="Backend for distribted training.", default='nccl', choices=['nccl', 'gloo', 'mpi'])
+    parser.add_argument("--arch", type=str, help="Model architecture.", default='resnet50', choices=['resnet50', 'resnet18', 'resnet101', 'resnet152'])
     parser.add_argument("--use_syn", action="store_true", help="Use synthetic data")
     argv = parser.parse_args()
 
@@ -96,7 +99,8 @@ def main():
     torch.distributed.init_process_group(backend=backend)
 
     # Encapsulate the model on the GPU assigned to the current process
-    model = torchvision.models.resnet18(pretrained=False)
+    model = getattr(torchvision.models, argv.arch)(pretrained=False)
+    print(model)
 
     device = torch.device("cuda:{}".format(local_rank))
     model = model.to(device)
